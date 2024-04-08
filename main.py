@@ -1,13 +1,16 @@
 import logging
 import os
-import random
+import requests
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, filters, CommandHandler, CallbackContext, MessageHandler
 from dotenv import load_dotenv
 
+from work_with_api import *
+
 load_dotenv()
-BOT_TOKEN = os.getenv('TOKEN')
+BOT_TOKEN = os.getenv('TG_TOKEN')
+API_TOKEN = os.getenv('PROGRAM_API_TOKEN')
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
@@ -35,6 +38,12 @@ async def on_message(update, context: CallbackContext):
         await update.message.reply_text(text='Клавиатура скрыта', reply_markup=ReplyKeyboardRemove())
     elif text == 'Назад':
         await on_start(update, context)
+
+
+async def on_quize(update, context: CallbackContext):
+    text = update.message.text
+    if text == '':
+        pass
 
 
 def main():
