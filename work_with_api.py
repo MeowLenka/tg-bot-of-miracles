@@ -1,18 +1,15 @@
 import os
+import pprint
 import random
 
 import requests
 from dotenv import load_dotenv
 
+from opentdb import all_opentdb_categories
+
 load_dotenv()
 BOT_TOKEN = os.getenv('TG_TOKEN')
 PROGRAM_API_TOKEN = os.getenv('PROGRAM_API_TOKEN')
-
-
-def get_response_quiz():
-    request = 'https://opentdb.com/api.php?amount=10&category=9&difficulty=medium&type=multiple'
-    response = requests.get(request)
-    return response
 
 
 def get_json_quizapi(group, dif, tag, lim):
@@ -22,7 +19,14 @@ def get_json_quizapi(group, dif, tag, lim):
     return response.json()
 
 
-def get_response_quiz_de():
+def get_json_opentdb(group, dif, kind, lim):
+    request = (f'https://opentdb.com/api.php?amount={lim}&'
+               f'category={all_opentdb_categories[group]}&difficulty={dif}&type={kind}')
+    response = requests.get(request)
+    return response.json()
+
+
+def get_response_triviaapi():
     request = f'https://opentdb.com/api..php&apikey={PROGRAM_API_TOKEN} '
 
 
@@ -53,9 +57,37 @@ if __name__ == '__main__':
                         print(quest['explanation'])
 
     elif category == 2:
-        group = []
-        difficulty = []
-        kind = ''
+        group = random.choice(['General Knowledge',
+                               'Entertainment: Books',
+                               'Entertainment: Film',
+                               'Entertainment: Music',
+                               'Entertainment: Video Games',
+                               'Science & Nature',
+                               'Science: Mathematics',
+                               'Sports',
+                               'Geography',
+                               'History',
+                               'Art'])
+        difficulty = random.choice(['easy', 'medium', 'hard'])
+        kind = random.choice(['multiple', 'boolean'])
         limit = 5
+        questions = get_json_opentdb(group, difficulty, kind, limit)
+        for quest in questions['results']:
+            letters = 'abcdefghigkl'
+            print(quest['question'])
+            answers = quest['incorrect_answers']
+            answers.append(quest['correct_answer'])
+            random.shuffle(answers)
+            variants = {}
+            for n, a in enumerate(answers):
+                variants[letters[n]] = a
+                print(letters[n], a)
+            print('-------------------')
+            user_answer = input()
+            if variants[user_answer] == quest['correct_answer']:
+                print('Правильно!')
+            else:
+                print('Неверно. Правильный ответ: ', quest['correct_answer'])
+
     elif category == 3:
         pass
