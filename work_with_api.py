@@ -34,7 +34,6 @@ categories_dict = {
         'Компьютерные': 'Entertainment: Video Games',
         'Настольные': 'Entertainment: Board Games'
     },
-    'Еда': 'food',
     'Общие знания': 'General Knowledge'
 }
 
@@ -113,6 +112,7 @@ if __name__ == '__main__':
                 print(letters[n], a)
             print('-------------------')
             user_answer = input()
+            print(quest['correct_answer'])
             if variants[user_answer] == quest['correct_answer']:
                 print('Правильно!')
             else:
