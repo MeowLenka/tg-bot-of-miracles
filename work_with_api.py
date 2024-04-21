@@ -11,6 +11,33 @@ load_dotenv()
 BOT_TOKEN = os.getenv('TG_TOKEN')
 PROGRAM_API_TOKEN = os.getenv('PROGRAM_API_TOKEN')
 
+dif_dict = {
+    'Простой': 'easy', 'Средний': 'medium', 'Сложный': 'hard'
+}
+
+categories_dict = {
+    'Наука': {
+        'Математика': 'Science: Mathematics',
+        'Информатика': 'Science: Computers',
+        'История': 'History',
+        'География': 'Geography',
+        'Окружающий мир': 'Science & Nature'
+    },
+    'Искусство': {
+        'Театр': 'Entertainment: Musicals & Theatres',
+        'Кино': 'Entertainment: Film',
+        'Музыка': 'Entertainment: Music',
+        'Живопись': 'Art'
+    },
+    'Спорт': 'Sports',
+    'Игры': {
+        'Компьютерные': 'Entertainment: Video Games',
+        'Настольные': 'Entertainment: Board Games'
+    },
+    'Еда': 'food',
+    'Общие знания': 'General Knowledge'
+}
+
 
 def get_json_quizapi(group, dif, tag, lim):
     request = (f'https://quizapi.io/api/v1/questions?apiKey={PROGRAM_API_TOKEN}'
@@ -27,7 +54,8 @@ def get_json_opentdb(group, dif, kind, lim):
 
 
 def get_response_triviaapi():
-    request = f'https://opentdb.com/api..php&apikey={PROGRAM_API_TOKEN} '
+    request = f'https://the-trivia-api.com/v2/questions'
+    request = 'https://opentdb.com/api..php&apikey='
 
 
 if __name__ == '__main__':
@@ -49,6 +77,7 @@ if __name__ == '__main__':
                 # print('correct_answer: ', quest['correct_answer'][-1])
                 print('-------------------')
                 user_answer = input()
+                print(quest['correct_answer'][-1])
                 if user_answer == quest['correct_answer'][-1]:
                     print('Правильно!')
                 else:
