@@ -1,3 +1,4 @@
+import pprint
 import random
 import requests
 
@@ -6,7 +7,7 @@ from opentdb import all_opentdb_categories
 from support import PROGRAM_API_TOKEN
 
 
-def get_json_quizapi(group, dif, tag, lim):
+def get_json_quizapi(group, dif, lim):
     request = (f'https://quizapi.io/api/v1/questions?apiKey={PROGRAM_API_TOKEN}'
                f'&category={group}&difficulty={dif}&limit={lim}')
     response = requests.get(request, headers={"User-Agent": ""})
@@ -34,8 +35,9 @@ if __name__ == '__main__':
                                'Linux', 'SQL', 'bash', 'uncategorized'])
         difficulty = random.choice(['easy', 'medium', 'hard'])
         tag = random.choice(['Git', 'MySQL', 'Python'])
-        limit = 5
-        questions = get_json_quizapi(group, difficulty, tag, limit)
+        limit = 1
+        questions = get_json_quizapi(group, difficulty, limit)
+        pprint.pprint(questions)
         for quest in questions:
             if quest['correct_answer']:
                 print(quest['question'])
@@ -48,6 +50,7 @@ if __name__ == '__main__':
                 print(quest['correct_answer'][-1])
                 if user_answer == quest['correct_answer'][-1]:
                     print('Правильно!')
+                    print(quest['answers'][quest['correct_answer']])
                 else:
                     print('Неверно. Правильный ответ: ', quest['correct_answer'][-1])
                     if quest['explanation']:
