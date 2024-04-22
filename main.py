@@ -1,18 +1,22 @@
 import logging
-import random
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, filters, CommandHandler, CallbackContext, MessageHandler, ConversationHandler
 
+from deep_translator import GoogleTranslator
+
 from work_with_api import get_json_quizapi, get_json_opentdb, get_json_triviaapi
 from support import *
-# from quizapi import QuizApi
+from quizapi import QuizApi
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
+
+quizapi = QuizApi()
+translator = GoogleTranslator(source='auto', target='ru')
 
 
 async def on_stop(update, context: CallbackContext):
@@ -103,19 +107,18 @@ async def quiz_ask_question(update, context: CallbackContext):
     limit = 1
     if category == 'Программирование':
         group = context.user_data['kind']
-        questions = get_json_quizapi(group, difficulty, limit)
-        for quest in questions:
-            if quest['correct_answer']:
-                context.user_data['current_question'] = quest
-                answ = []
-                for let, ans in quest['answers'].items():
-                    if ans:
-                        answ.append([ans])
-                answers_keyboard = ReplyKeyboardMarkup(answ)
-                context.user_data['num_of_quest'] += 1
-                await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
-                                                     f"{quest['question']}", reply_markup=answers_keyboard)
-                return 6
+        json = quizapi.get_json(group, difficulty, limit)
+        while not json:
+            json = quizapi.get_json(group, difficulty, limit)
+        if json:
+            quest, answ = quizapi.get_question_and_answers(json)
+            context.user_data['current_question'] = quest
+            answers_keyboard = ReplyKeyboardMarkup(answ)
+            context.user_data['num_of_quest'] += 1
+            ru_question = translator.translate(text=quest['question'])
+            await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
+                                                 f"{ru_question}", reply_markup=answers_keyboard)
+            return 6
 
     elif category == 'Общие знания':
         questions = get_json_triviaapi()
@@ -125,10 +128,12 @@ async def quiz_ask_question(update, context: CallbackContext):
                 answ = quest['incorrectAnswers']
                 answ.append(quest['correctAnswer'])
                 random.shuffle(answ)
-                answers_keyboard = ReplyKeyboardMarkup([answ])
+                ru_answ = [[translator.translate(text=a)] for a in answ]
+                answers_keyboard = ReplyKeyboardMarkup(ru_answ)
                 context.user_data['num_of_quest'] += 1
+                ru_question = translator.translate(text=quest['question']['text'])
                 await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
-                                                     f"{quest['question']['text']}", reply_markup=answers_keyboard)
+                                                     f"{ru_question}", reply_markup=answers_keyboard)
                 return 6
     else:
         if context.user_data['kind']:
@@ -143,9 +148,11 @@ async def quiz_ask_question(update, context: CallbackContext):
             answ = quest['incorrect_answers']
             answ.append(quest['correct_answer'])
             random.shuffle(answ)
-            answers_keyboard = ReplyKeyboardMarkup([answ])
+            ru_answ = [[translator.translate(text=a)] for a in answ]
+            answers_keyboard = ReplyKeyboardMarkup(ru_answ)
             context.user_data['num_of_quest'] += 1
-            await update.message.reply_text(text=quest['question'], reply_markup=answers_keyboard)
+            ru_question = translator.translate(text=quest['question'])
+            await update.message.reply_text(text=ru_question, reply_markup=answers_keyboard)
             return 6
 
     # await update.message.reply_text(text='Тут жесткая викторина!')
@@ -157,7 +164,7 @@ async def quiz_check_answer(update, context: CallbackContext):
     category = context.user_data['category']
 
     if category == 'Программирование':
-        correct = quest['answers'][quest['correct_answer']]
+        correct = translator.translate(text=quest['answers'][quest['correct_answer']])
         if user_answer == correct:
             text = 'Правильно!'
             context.user_data['num_of_cor_answ'] += 1
@@ -171,19 +178,21 @@ async def quiz_check_answer(update, context: CallbackContext):
                         f"Правильный ответ: {correct}")
 
     elif category == 'Общие знания':
-        if user_answer == quest['correctAnswer']:
+        correct = translator.translate(quest['correctAnswer'])
+        if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
         else:
             text = (f"Неверно.\n"
-                    f"Правильный ответ: {quest['correctAnswer']}")
+                    f"Правильный ответ: {correct}")
     else:
-        if user_answer == quest['correct_answer']:
+        correct = translator.translate(quest['correct_answer'])
+        if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
         else:
             text = (f"Неверно.\n"
-                    f"Правильный ответ: {quest['correct_answer']}")
+                    f"Правильный ответ: {correct}")
 
     num = 5 - context.user_data['num_of_quest']
     if num > 0:
@@ -207,14 +216,9 @@ async def show_the_results(update, context: CallbackContext):
 
 async def see_account(update, context: CallbackContext):
     pass
-    # keyboard = ReplyKeyboardMarkup([['Подборка викторин', 'Личный кабинет'], ['Скрыть']])
-    # text = f" Количество правильных ответов: {context.user_data['num_of_cor_answ']}"
-    # await update.message.reply_text(text=text, reply_markup=keyboard)
-    # return 1
 
 
 def main():
-    # quizapi = QuizApi()
     application = Application.builder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(

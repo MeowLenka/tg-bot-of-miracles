@@ -1,8 +1,9 @@
-import random
 import requests
+from deep_translator import GoogleTranslator
 
-from opentdb import all_opentdb_categories
 from support import PROGRAM_API_TOKEN
+
+translator = GoogleTranslator(source='auto', target='ru')
 
 all_quizapi_categories = ['CMS', 'Code', 'DevOps', 'Docker',
                           'Linux', 'SQL', 'bash', 'uncategorized']
@@ -22,12 +23,11 @@ class QuizApi:
         response = requests.get(request, headers={"User-Agent": ""})
         return response.json()
 
-    def get_question_and_answers(self, questions: list):
-        for quest in questions:
+    def get_question_and_answers(self, json: list):
+        for quest in json:
             if quest['correct_answer']:
                 answ = []
                 for let, ans in quest['answers'].items():
                     if ans:
-                        answ.append([ans])
+                        answ.append([translator.translate(text=ans)])
             return quest, answ
-
