@@ -3,11 +3,13 @@ import logging
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, filters, CommandHandler, CallbackContext, MessageHandler, ConversationHandler
 
-from deep_translator import GoogleTranslator
+import quizapi
+import triviaapi
+import opentdb
 
-from work_with_api import get_json_quizapi, get_json_opentdb, get_json_triviaapi
+from work_with_api import get_json_opentdb, get_json_triviaapi
 from support import *
-from quizapi import QuizApi
+from database import DataBase
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -15,19 +17,28 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-quizapi = QuizApi()
+db = DataBase('database_info.db')
 translator = GoogleTranslator(source='auto', target='ru')
 
 
 async def on_stop(update, context: CallbackContext):
     await update.message.reply_text(text='Пока! Надеюсь, мы с тобой еще пообщаемся', reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
 
 
 async def on_start(update, context: CallbackContext):
-    keyboard = ReplyKeyboardMarkup(main_markup)
+    keyboard = ReplyKeyboardMarkup([['/begin']])
     await update.message.reply_text(text='Привет! Хочешь проверить свой кругозор, узнать что-то новое и '
 
                                          'сразиться с другими? Тогда давай начнем!', reply_markup=keyboard)
+
+
+async def on_begin(update, context: CallbackContext):
+    main_keyboard = ReplyKeyboardMarkup(main_markup)
+    user_id = context.user_id
+    if not db.user_exists(user_id):
+        db.add_user(user_id)
+    await update.message.reply_text(text='Добро пожаловать', reply_markup=main_keyboard)
     return 1
 
 
@@ -38,20 +49,20 @@ async def choose_category(update, context: CallbackContext):
         await update.message.reply_text(text='Выберите категорию', reply_markup=quizzes_keyboard)
         return 2
     if text == 'Личный кабинет':
-        quizzes_keyboard = ReplyKeyboardMarkup(quizzes_selection_markup)
-        await update.message.reply_text(text='Личный кабинет:', reply_markup=quizzes_keyboard)
+        account_keyboard = ReplyKeyboardMarkup(pers_account_markup)
+        await update.message.reply_text(text='Личный кабинет:', reply_markup=account_keyboard)
         return 102
-    elif text == 'Скрыть':
-        await update.message.reply_text(text='Клавиатура скрыта', reply_markup=ReplyKeyboardRemove())
-    elif text == 'Назад':
-        await on_start(update, context)
+    # elif text == 'Скрыть':
+    #     await update.message.reply_text(text='Клавиатура скрыта', reply_markup=ReplyKeyboardRemove())
+    # elif text == 'Назад':
+    #     return ConversationHandler.END
 
 
 async def choose_difficulty_level(update, context: CallbackContext):
     category = update.message.text
     if category == 'Назад':
-        keyboard = ReplyKeyboardMarkup(main_markup)
-        await update.message.reply_text(text='Давай начнем!', reply_markup=keyboard)
+        main_keyboard = ReplyKeyboardMarkup(main_markup)
+        await update.message.reply_text(text='Давай начнем!', reply_markup=main_keyboard)
         return 1
     context.user_data['category'] = category
     difficulty_keyboard = ReplyKeyboardMarkup(difficulty_selection_markup)
@@ -93,8 +104,6 @@ async def quiz_pre_start(update, context: CallbackContext):
         quizzes_keyboard = ReplyKeyboardMarkup(quizzes_selection_markup)
         await update.message.reply_text(text='Выберите категорию', reply_markup=quizzes_keyboard)
         return 2
-    # context.user_data['num_of_quest'] = 0
-    # context.user_data['num_of_cor_answ'] = 0
     context.user_data['kind'] = kind
 
     await update.message.reply_text(text='Давайте начнем!', reply_markup=ReplyKeyboardMarkup([['Ок!']]))
@@ -107,55 +116,25 @@ async def quiz_ask_question(update, context: CallbackContext):
     limit = 1
     if category == 'Программирование':
         group = context.user_data['kind']
-        json = quizapi.get_json(group, difficulty, limit)
-        while not json:
-            json = quizapi.get_json(group, difficulty, limit)
-        if json:
-            quest, answ = quizapi.get_question_and_answers(json)
-            context.user_data['current_question'] = quest
-            answers_keyboard = ReplyKeyboardMarkup(answ)
-            context.user_data['num_of_quest'] += 1
-            ru_question = translator.translate(text=quest['question'])
-            await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
-                                                 f"{ru_question}", reply_markup=answers_keyboard)
-            return 6
-
+        json = quizapi.get_json_quizapi(group, difficulty, limit)
     elif category == 'Общие знания':
-        questions = get_json_triviaapi()
-        for quest in questions:
-            if quest['difficulty'] == difficulty:
-                context.user_data['current_question'] = quest
-                answ = quest['incorrectAnswers']
-                answ.append(quest['correctAnswer'])
-                random.shuffle(answ)
-                ru_answ = [[translator.translate(text=a)] for a in answ]
-                answers_keyboard = ReplyKeyboardMarkup(ru_answ)
-                context.user_data['num_of_quest'] += 1
-                ru_question = translator.translate(text=quest['question']['text'])
-                await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
-                                                     f"{ru_question}", reply_markup=answers_keyboard)
-                return 6
+        json = triviaapi.get_json_triviaapi()
     else:
         if context.user_data['kind']:
             group = categories_dict[category][context.user_data['kind']]
         else:
             group = categories_dict[category]
         kind = random.choice(['multiple', 'boolean'])
-        questions = get_json_opentdb(group, difficulty, kind, limit)
-        # letters = 'abcdefghigkl'
-        for quest in questions['results']:
-            context.user_data['current_question'] = quest
-            answ = quest['incorrect_answers']
-            answ.append(quest['correct_answer'])
-            random.shuffle(answ)
-            ru_answ = [[translator.translate(text=a)] for a in answ]
-            answers_keyboard = ReplyKeyboardMarkup(ru_answ)
-            context.user_data['num_of_quest'] += 1
-            ru_question = translator.translate(text=quest['question'])
-            await update.message.reply_text(text=ru_question, reply_markup=answers_keyboard)
-            return 6
+        json = opentdb.get_json_opentdb(group, difficulty, kind, limit)
 
-    # await update.message.reply_text(text='Тут жесткая викторина!')
+    if json:
+        quest, answ = opentdb.get_qa_opentdb(json)
+        context.user_data['current_question'] = quest
+        context.user_data['num_of_quest'] += 1
+        answers_keyboard = ReplyKeyboardMarkup(answ)
+        await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
+                                             f"{quest}", reply_markup=answers_keyboard)
+        return 6
 
 
 async def quiz_check_answer(update, context: CallbackContext):
@@ -163,11 +142,14 @@ async def quiz_check_answer(update, context: CallbackContext):
     quest = context.user_data['current_question']
     category = context.user_data['category']
 
+    db.update_count(context.user_id, 1, 'count_of_all_answers')
+
     if category == 'Программирование':
         correct = translator.translate(text=quest['answers'][quest['correct_answer']])
         if user_answer == correct:
             text = 'Правильно!'
             context.user_data['num_of_cor_answ'] += 1
+            db.update_count(context.user_id, 1, 'count_of_cor_answers')
         else:
             if quest['explanation']:
                 text = (f"Неверно.\n"
@@ -182,6 +164,7 @@ async def quiz_check_answer(update, context: CallbackContext):
         if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
+            db.update_count(context.user_id, 1, 'count_of_cor_answers')
         else:
             text = (f"Неверно.\n"
                     f"Правильный ответ: {correct}")
@@ -190,6 +173,7 @@ async def quiz_check_answer(update, context: CallbackContext):
         if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
+            db.update_count(context.user_id, 1, 'count_of_cor_answers')
         else:
             text = (f"Неверно.\n"
                     f"Правильный ответ: {correct}")
@@ -206,6 +190,8 @@ async def quiz_check_answer(update, context: CallbackContext):
 
 
 async def show_the_results(update, context: CallbackContext):
+    db.update_count(context.user_id, 1, 'count_of_quizes')
+
     keyboard = ReplyKeyboardMarkup([['Подборка викторин', 'Личный кабинет'], ['Скрыть']])
     text = (f"Ваш результат: \n"
             f"Верно - {context.user_data['num_of_cor_answ']} \n"
@@ -215,14 +201,29 @@ async def show_the_results(update, context: CallbackContext):
 
 
 async def see_account(update, context: CallbackContext):
-    pass
+    choose = update.message.text
+    if choose == 'Назад':
+        main_keyboard = ReplyKeyboardMarkup(main_markup)
+        await update.message.reply_text(text='Давай начнем!', reply_markup=main_keyboard)
+        return 1
+    if choose == 'Посмотреть статистику':
+        quizzes = db.get_count(context.user_id, 'count_of_quizes')
+        all_answers = db.get_count(context.user_id, 'count_of_all_answers')
+        cor_answers = db.get_count(context.user_id, 'count_of_cor_answers')
+        text = (f'Ваша статистика:\n'
+                f'\nКоличество пройденных викторин: {quizzes}'
+                f'\nКоличество всех ответов: {all_answers}'
+                f'\nКоличество правильных ответов: {cor_answers} \n'
+                f'\nПроцент правильных ответов: {int((cor_answers / all_answers) * 100)}%')
+        await update.message.reply_text(text=text, reply_markup=ReplyKeyboardMarkup([['Назад']]))
 
 
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
+    start_handler = CommandHandler('start', on_start)
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', on_start)],
+        entry_points=[CommandHandler('begin', on_begin)],
         states={
             1: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_category)],
             2: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_difficulty_level)],
@@ -235,6 +236,7 @@ def main():
         },
         fallbacks=[CommandHandler('stop', on_stop)]
     )
+    application.add_handler(start_handler)
     application.add_handler(conv_handler)
 
     application.run_polling()

@@ -2,10 +2,12 @@ import os
 import random
 
 from dotenv import load_dotenv
+from deep_translator import GoogleTranslator
 
 load_dotenv()
 BOT_TOKEN = os.getenv('TG_TOKEN')
 PROGRAM_API_TOKEN = os.getenv('PROGRAM_API_TOKEN')
+translator = GoogleTranslator(source='auto', target='ru')
 
 dif_dict = {
     'Простой': 'easy', 'Средний': 'medium', 'Сложный': 'hard',
@@ -39,9 +41,9 @@ categories_dict = {
     'Общие знания': 'General Knowledge'
 }
 
-main_markup = [['Подборка викторин', 'Личный кабинет'], ['Скрыть']]
+main_markup = [['Подборка викторин', 'Личный кабинет'], ['/stop']]
 
-pers_account_markup = [['Изменить имя пользователя', 'Посмотреть статистику', 'Мои викторины'], ['Назад']]
+pers_account_markup = [['Посмотреть статистику', 'Мои викторины'], ['Назад']]
 
 programming_kinds_markup = [['CMS', 'Code'], ['DevOps', 'Docker'],
                             ['Linux', 'SQL'], ['bash', 'uncategorized'],
