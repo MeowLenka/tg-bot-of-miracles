@@ -8,18 +8,19 @@ all_triviaapi_categories = ["music", "sport_and_leisure", "film_and_tv",
                             "science", "geography", "food_and_drink", "general_knowledge"]
 
 
-def get_json_triviaapi():
+def get_json_triviaapi(dif):
     request = f'https://the-trivia-api.com/v2/questions'
     response = requests.get(request, headers={"User-Agent": ""})
-    return response.json()
-
-
-def get_qa_triviaapi(json: list, dif):
-    for quest in json:
+    for quest in response.json():
         if quest['difficulty'] == dif:
-            answ = quest['incorrectAnswers']
-            answ.append(quest['correctAnswer'])
-            random.shuffle(answ)
-            ru_answ = [[translator.translate(text=a)] for a in answ]
-            ru_quest = translator.translate(text=quest['question']['text'])
-            return ru_quest, ru_answ
+            return quest
+    return response.json()[0]
+
+
+def get_qa_triviaapi(json):
+    answ = json['incorrectAnswers']
+    answ.append(json['correctAnswer'])
+    random.shuffle(answ)
+    ru_answ = [[translator.translate(text=a)] for a in answ]
+    ru_quest = translator.translate(text=json['question']['text'])
+    return ru_quest, ru_answ

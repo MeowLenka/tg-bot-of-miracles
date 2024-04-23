@@ -37,7 +37,7 @@ def get_json_opentdb(group, dif, kind, lim):
     return response.json()
 
 
-def get_qa_opentdb(json: list):
+def get_qa_opentdb(json):
     for quest in json['results']:
         answ = quest['incorrect_answers']
         answ.append(quest['correct_answer'])

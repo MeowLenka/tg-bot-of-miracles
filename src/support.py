@@ -15,6 +15,18 @@ dif_dict = {
 }
 
 categories_dict = {
+    'Программирование': {
+        'CMS': 'CMS',
+        'Кодинг': 'Code',
+        'DevOps': 'DevOps',
+        'Docker': 'Docker',
+        'Linux': 'Linux',
+        'SQL': 'SQL',
+        'bash': 'bash',
+        'Без категории': 'uncategorized',
+        'Случайное': random.choice(['CMS', 'Code', 'DevOps', 'Docker',
+                                    'Linux', 'SQL', 'bash', 'uncategorized'])
+    },
     'Наука': {
         'Математика': 'Science: Mathematics',
         'Информатика': 'Science: Computers',
@@ -45,8 +57,8 @@ main_markup = [['Подборка викторин', 'Личный кабине�
 
 pers_account_markup = [['Посмотреть статистику', 'Мои викторины'], ['Назад']]
 
-programming_kinds_markup = [['CMS', 'Code'], ['DevOps', 'Docker'],
-                            ['Linux', 'SQL'], ['bash', 'uncategorized'],
+programming_kinds_markup = [['CMS', 'Кодинг'], ['DevOps', 'Docker'],
+                            ['Linux', 'SQL'], ['bash', 'Без категории'],
                             ['Случайное'], ['Назад']]
 
 science_kinds_markup = [['Математика'], ['Информатика'], ['История'], ['География'],

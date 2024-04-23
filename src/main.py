@@ -51,8 +51,8 @@ async def choose_category(update, context: CallbackContext):
         account_keyboard = ReplyKeyboardMarkup(pers_account_markup)
         await update.message.reply_text(text='Личный кабинет:', reply_markup=account_keyboard)
         return 102
-    # elif text == 'Скрыть':
-    #     await update.message.reply_text(text='Клавиатура скрыта', reply_markup=ReplyKeyboardRemove())
+    if text == 'Скрыть':
+        await update.message.reply_text(text='Клавиатура скрыта', reply_markup=ReplyKeyboardRemove())
     # elif text == 'Назад':
     #     return ConversationHandler.END
 
@@ -93,6 +93,7 @@ async def choose_quize_kind(update, context: CallbackContext):
         kinds_keyboard = ReplyKeyboardMarkup(art_kinds_markup)
         await update.message.reply_text(text='Выберите направление', reply_markup=kinds_keyboard)
     else:
+        await update.message.reply_text(text='Давайте начнем!', reply_markup=ReplyKeyboardMarkup([['Ок!']]))
         return 5
     return 4
 
@@ -103,8 +104,8 @@ async def quiz_pre_start(update, context: CallbackContext):
         quizzes_keyboard = ReplyKeyboardMarkup(quizzes_selection_markup)
         await update.message.reply_text(text='Выберите категорию', reply_markup=quizzes_keyboard)
         return 2
-    context.user_data['kind'] = kind
 
+    context.user_data['kind'] = kind
     await update.message.reply_text(text='Давайте начнем!', reply_markup=ReplyKeyboardMarkup([['Ок!']]))
     return 5
 
@@ -114,10 +115,12 @@ async def quiz_ask_question(update, context: CallbackContext):
     difficulty = dif_dict[context.user_data['difficulty']]
     limit = 1
     if category == 'Программирование':
-        group = context.user_data['kind']
+        group = categories_dict[category][context.user_data['kind']]
         json = quizapi.get_json_quizapi(group, difficulty, limit)
+        quest, answ = quizapi.get_qa_quizapi(json)
     elif category == 'Общие знания':
-        json = triviaapi.get_json_triviaapi()
+        json = triviaapi.get_json_triviaapi(difficulty)
+        quest, answ = triviaapi.get_qa_triviaapi(json)
     else:
         if context.user_data['kind']:
             group = categories_dict[category][context.user_data['kind']]
@@ -125,15 +128,15 @@ async def quiz_ask_question(update, context: CallbackContext):
             group = categories_dict[category]
         kind = random.choice(['multiple', 'boolean'])
         json = opentdb.get_json_opentdb(group, difficulty, kind, limit)
-
-    if json:
         quest, answ = opentdb.get_qa_opentdb(json)
-        context.user_data['current_question'] = quest
-        context.user_data['num_of_quest'] += 1
-        answers_keyboard = ReplyKeyboardMarkup(answ)
-        await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
-                                             f"{quest}", reply_markup=answers_keyboard)
-        return 6
+
+    print('json', json)
+    context.user_data['current_question'] = json
+    context.user_data['num_of_quest'] += 1
+    answers_keyboard = ReplyKeyboardMarkup(answ)
+    await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
+                                         f"{quest}", reply_markup=answers_keyboard)
+    return 6
 
 
 async def quiz_check_answer(update, context: CallbackContext):
@@ -168,7 +171,7 @@ async def quiz_check_answer(update, context: CallbackContext):
             text = (f"Неверно.\n"
                     f"Правильный ответ: {correct}")
     else:
-        correct = translator.translate(quest['correct_answer'])
+        correct = translator.translate(quest['results'][0]['correct_answer'])
         if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
