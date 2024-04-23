@@ -1,7 +1,7 @@
 import requests
 import random
 
-from support import translator
+from src.support import translator
 
 all_opentdb_categories = {'General Knowledge': 1,
                           'Entertainment: Books': 10,
@@ -45,3 +45,8 @@ def get_qa_opentdb(json):
         ru_answ = [[translator.translate(text=a)] for a in answ]
         ru_quest = translator.translate(text=quest['question'])
         return ru_quest, ru_answ
+
+
+def check_answer_opentdb(ua, json):
+    correct = translator.translate(json['results'][0]['correct_answer'])
+    return ua == correct, correct

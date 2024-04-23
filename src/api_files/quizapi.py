@@ -1,6 +1,6 @@
 import requests
 
-from support import PROGRAM_API_TOKEN, translator
+from src.support import PROGRAM_API_TOKEN, translator
 
 all_quizapi_categories = ['CMS', 'Code', 'DevOps', 'Docker',
                           'Linux', 'SQL', 'bash', 'uncategorized']
@@ -29,3 +29,8 @@ def get_qa_quizapi(json):
             answ.append([translator.translate(text=ans)])
     ru_quest = translator.translate(text=json['question'])
     return ru_quest, answ
+
+
+def check_answer_quizapi(ua, json):
+    correct = translator.translate(text=json['answers'][json['correct_answer']])
+    return ua == correct, correct

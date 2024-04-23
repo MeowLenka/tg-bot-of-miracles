@@ -3,21 +3,17 @@ import logging
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, filters, CommandHandler, CallbackContext, MessageHandler, ConversationHandler
 
-import quizapi
-import triviaapi
-import opentdb
+from src.api_files import opentdb, triviaapi, quizapi
 
 from support import *
-from database import DataBase
+from src.db_files.database import DataBase
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
-
-db = DataBase('database_info.db')
-translator = GoogleTranslator(source='auto', target='ru')
+db = DataBase('db_files/database_info.db')
 
 
 async def on_stop(update, context: CallbackContext):
@@ -28,7 +24,6 @@ async def on_stop(update, context: CallbackContext):
 async def on_start(update, context: CallbackContext):
     keyboard = ReplyKeyboardMarkup([['/begin']])
     await update.message.reply_text(text='Привет! Хочешь проверить свой кругозор, узнать что-то новое и '
-
                                          'сразиться с другими? Тогда давай начнем!', reply_markup=keyboard)
 
 
@@ -53,8 +48,6 @@ async def choose_category(update, context: CallbackContext):
         return 102
     if text == 'Скрыть':
         await update.message.reply_text(text='Клавиатура скрыта', reply_markup=ReplyKeyboardRemove())
-    # elif text == 'Назад':
-    #     return ConversationHandler.END
 
 
 async def choose_difficulty_level(update, context: CallbackContext):
@@ -104,7 +97,6 @@ async def quiz_pre_start(update, context: CallbackContext):
         quizzes_keyboard = ReplyKeyboardMarkup(quizzes_selection_markup)
         await update.message.reply_text(text='Выберите категорию', reply_markup=quizzes_keyboard)
         return 2
-
     context.user_data['kind'] = kind
     await update.message.reply_text(text='Давайте начнем!', reply_markup=ReplyKeyboardMarkup([['Ок!']]))
     return 5
@@ -129,9 +121,8 @@ async def quiz_ask_question(update, context: CallbackContext):
         kind = random.choice(['multiple', 'boolean'])
         json = opentdb.get_json_opentdb(group, difficulty, kind, limit)
         quest, answ = opentdb.get_qa_opentdb(json)
-
     print('json', json)
-    context.user_data['current_question'] = json
+    context.user_data['current_json'] = json
     context.user_data['num_of_quest'] += 1
     answers_keyboard = ReplyKeyboardMarkup(answ)
     await update.message.reply_text(text=f"{context.user_data['num_of_quest']}. "
@@ -141,49 +132,28 @@ async def quiz_ask_question(update, context: CallbackContext):
 
 async def quiz_check_answer(update, context: CallbackContext):
     user_answer = update.message.text
-    quest = context.user_data['current_question']
+    json = context.user_data['current_json']
     category = context.user_data['category']
-
     db.update_count(context._user_id, 1, 'count_of_all_answers')
 
     if category == 'Программирование':
-        correct = translator.translate(text=quest['answers'][quest['correct_answer']])
-        if user_answer == correct:
-            text = 'Правильно!'
-            context.user_data['num_of_cor_answ'] += 1
-            db.update_count(context._user_id, 1, 'count_of_cor_answers')
-        else:
-            if quest['explanation']:
-                text = (f"Неверно.\n"
-                        f"Правильный ответ: {correct} \n"
-                        f"Пояснение: {quest['explanation']}")
-            else:
-                text = (f"Неверно.\n"
-                        f"Правильный ответ: {correct}")
-
+        verdict, correct = quizapi.check_answer_quizapi(user_answer, json)
     elif category == 'Общие знания':
-        correct = translator.translate(quest['correctAnswer'])
-        if user_answer == correct:
-            context.user_data['num_of_cor_answ'] += 1
-            text = 'Правильно!'
-            db.update_count(context._user_id, 1, 'count_of_cor_answers')
-        else:
-            text = (f"Неверно.\n"
-                    f"Правильный ответ: {correct}")
+        verdict, correct = triviaapi.check_answer_triviaapi(user_answer, json)
     else:
-        correct = translator.translate(quest['results'][0]['correct_answer'])
-        if user_answer == correct:
-            context.user_data['num_of_cor_answ'] += 1
-            text = 'Правильно!'
-            db.update_count(context._user_id, 1, 'count_of_cor_answers')
-        else:
-            text = (f"Неверно.\n"
-                    f"Правильный ответ: {correct}")
+        verdict, correct = opentdb.check_answer_opentdb(user_answer, json)
+
+    if verdict:
+        text = 'Правильно!'
+        context.user_data['num_of_cor_answ'] += 1
+        db.update_count(context._user_id, 1, 'count_of_cor_answers')
+    else:
+        text = (f"Неверно.\n"
+                f"Правильный ответ: {correct}")
 
     num = 5 - context.user_data['num_of_quest']
     if num > 0:
-        await update.message.reply_text(text=text,
-                                        reply_markup=ReplyKeyboardMarkup([['Дальше']]))
+        await update.message.reply_text(text=text, reply_markup=ReplyKeyboardMarkup([['Дальше']]))
         return 5
     else:
         await update.message.reply_text(text=f"{text}\n\nЭто был последний вопрос",
