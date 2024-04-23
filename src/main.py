@@ -7,7 +7,6 @@ import quizapi
 import triviaapi
 import opentdb
 
-from work_with_api import get_json_opentdb, get_json_triviaapi
 from support import *
 from database import DataBase
 
@@ -35,7 +34,7 @@ async def on_start(update, context: CallbackContext):
 
 async def on_begin(update, context: CallbackContext):
     main_keyboard = ReplyKeyboardMarkup(main_markup)
-    user_id = context.user_id
+    user_id = context._user_id
     if not db.user_exists(user_id):
         db.add_user(user_id)
     await update.message.reply_text(text='Добро пожаловать', reply_markup=main_keyboard)
@@ -142,14 +141,14 @@ async def quiz_check_answer(update, context: CallbackContext):
     quest = context.user_data['current_question']
     category = context.user_data['category']
 
-    db.update_count(context.user_id, 1, 'count_of_all_answers')
+    db.update_count(context._user_id, 1, 'count_of_all_answers')
 
     if category == 'Программирование':
         correct = translator.translate(text=quest['answers'][quest['correct_answer']])
         if user_answer == correct:
             text = 'Правильно!'
             context.user_data['num_of_cor_answ'] += 1
-            db.update_count(context.user_id, 1, 'count_of_cor_answers')
+            db.update_count(context._user_id, 1, 'count_of_cor_answers')
         else:
             if quest['explanation']:
                 text = (f"Неверно.\n"
@@ -164,7 +163,7 @@ async def quiz_check_answer(update, context: CallbackContext):
         if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
-            db.update_count(context.user_id, 1, 'count_of_cor_answers')
+            db.update_count(context._user_id, 1, 'count_of_cor_answers')
         else:
             text = (f"Неверно.\n"
                     f"Правильный ответ: {correct}")
@@ -173,7 +172,7 @@ async def quiz_check_answer(update, context: CallbackContext):
         if user_answer == correct:
             context.user_data['num_of_cor_answ'] += 1
             text = 'Правильно!'
-            db.update_count(context.user_id, 1, 'count_of_cor_answers')
+            db.update_count(context._user_id, 1, 'count_of_cor_answers')
         else:
             text = (f"Неверно.\n"
                     f"Правильный ответ: {correct}")
@@ -190,7 +189,7 @@ async def quiz_check_answer(update, context: CallbackContext):
 
 
 async def show_the_results(update, context: CallbackContext):
-    db.update_count(context.user_id, 1, 'count_of_quizes')
+    db.update_count(context._user_id, 1, 'count_of_quizes')
 
     keyboard = ReplyKeyboardMarkup([['Подборка викторин', 'Личный кабинет'], ['Скрыть']])
     text = (f"Ваш результат: \n"
@@ -207,9 +206,9 @@ async def see_account(update, context: CallbackContext):
         await update.message.reply_text(text='Давай начнем!', reply_markup=main_keyboard)
         return 1
     if choose == 'Посмотреть статистику':
-        quizzes = db.get_count(context.user_id, 'count_of_quizes')
-        all_answers = db.get_count(context.user_id, 'count_of_all_answers')
-        cor_answers = db.get_count(context.user_id, 'count_of_cor_answers')
+        quizzes = db.get_count(context._user_id, 'count_of_quizes')
+        all_answers = db.get_count(context._user_id, 'count_of_all_answers')
+        cor_answers = db.get_count(context._user_id, 'count_of_cor_answers')
         text = (f'Ваша статистика:\n'
                 f'\nКоличество пройденных викторин: {quizzes}'
                 f'\nКоличество всех ответов: {all_answers}'
