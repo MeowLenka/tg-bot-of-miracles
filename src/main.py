@@ -58,11 +58,6 @@ async def choose_difficulty_level(update, context: CallbackContext):
         main_keyboard = ReplyKeyboardMarkup(main_markup)
         await update.message.reply_text(text='Давай начнем!', reply_markup=main_keyboard)
         return 1
-    if category == 'Города по фотографиям':
-        await update.message.reply_text(text='Я буду отправлять фотографии городов, '
-                                             'а твоя задача ответить правильно их названия.',
-                                        reply_markup=ReplyKeyboardMarkup([['Ок!']]))
-        return
     context.user_data['category'] = category
     difficulty_keyboard = ReplyKeyboardMarkup(difficulty_selection_markup)
     await update.message.reply_text(text='Выберите уровень сложности', reply_markup=difficulty_keyboard)
